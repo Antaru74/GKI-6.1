@@ -102,6 +102,42 @@ CONFIG_IP6_NF_MATCH_HL=y
 # BBG (baseband-guard)
 CONFIG_BBG=y
 EOF
+
+fi
+
+echo "⚙️ Adding Droidspaces support"
+cat >> $DEFCONFIG <<EOF
+CONFIG_SYSVIPC=y
+CONFIG_POSIX_MQUEUE=y
+
+# Namespaces
+CONFIG_IPC_NS=y
+CONFIG_PID_NS=y
+
+# HW Access Support
+CONFIG_DEVTMPFS=y
+
+# Networking (Enhanced NAT support)
+CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
+
+# --- Below configs are optional but recommended ---
+
+# UFW support
+CONFIG_NETFILTER_XT_TARGET_REJECT=y
+CONFIG_NETFILTER_XT_TARGET_LOG=y
+CONFIG_NETFILTER_XT_MATCH_RECENT=y
+
+# Fail2ban support
+CONFIG_IP_SET=y
+CONFIG_IP_SET_HASH_IP=y
+CONFIG_IP_SET_HASH_NET=y
+CONFIG_NETFILTER_XT_SET=y
+
+# Enable xattr, posix acl support on tmpfs
+# For NixOS support
+CONFIG_TMPFS_POSIX_ACL=y
+CONFIG_TMPFS_XATTR=y
+EOF
 if [ "$KSU_COMPAT" != "true" ]; then
   echo "🔧 Disable useless debugging configs for performance and resources"
   cat >> $DEFCONFIG <<EOF
