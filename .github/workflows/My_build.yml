@@ -47,7 +47,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
 
     steps:
       - name: Checkout build script & patches
@@ -68,45 +67,43 @@ jobs:
           restore-keys: |
             ccache-${{ runner.os }}-
 
-      - name: Patch build.sh to force gcc for host tools
+      - name: Patch build.sh to use explicit clang tools + gcc for host
         working-directory: builder
         run: |
-          # Insert HOSTCC and HOSTCXX at the beginning of MAKE_ARGS array
+          # Replace LLVM=1 line in MAKE_ARGS with explicit toolchain variables
+          sed -i '/^MAKE_ARGS=(/,/^)/ {
+            s/LLVM=1/CC=clang\n  LD=ld.lld\n  AR=llvm-ar\n  NM=llvm-nm\n  STRIP=llvm-strip\n  OBJCOPY=llvm-objcopy\n  OBJDUMP=llvm-objdump\n  READELF=llvm-readelf/
+            /LLVM_IAS=1/d
+          }' build.sh
+          # Also ensure HOSTCC and HOSTCXX are first in the array
           sed -i '/^MAKE_ARGS=(/a \  HOSTCC=gcc\n  HOSTCXX=g++' build.sh
 
       - name: Build kernel (compat variant)
         working-directory: builder
         run: |
           chmod +x build.sh functions.sh py/kmi-check-6.x.py
+          export HOSTCC=gcc HOSTCXX=g++
           ./build.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Ensure HOSTCC is also set for any direct make calls inside script
-          HOSTCC: gcc
-          HOSTCXX: g++
 
-      - name: Upload artifacts (kernel zip & logs)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: kernel-compat-artifacts
           path: builder/artifacts/*
           if-no-files-found: error
 
-      - name: Create GitHub Release (if RELEASE status)
+      - name: Create GitHub Release
         if: env.STATUS == 'RELEASE'
         working-directory: builder
         run: |
           source artifacts/info.txt 2>/dev/null || true
           RELEASE_NAME="$KERNEL_NAME $RELEASE"
           TAG_NAME="v${RELEASE}"
-
           gh release create "$TAG_NAME" \
             --title "$RELEASE_NAME" \
             --notes "Kernel build for compat variant (${KSU})" \
-            artifacts/*.zip \
-            artifacts/*.txt \
-            artifacts/build.log
+            artifacts/*.zip artifacts/*.txt artifacts/build.log
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE: ${{ env.RELEASE }}
-          KERNEL_NAME: ${{ env.KERNEL_NAME }}
