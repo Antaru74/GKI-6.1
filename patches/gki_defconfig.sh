@@ -3,8 +3,8 @@
 # Define target defconfig location
 DEFCONFIG="arch/arm64/configs/gki_defconfig"
 
+# Base KSU config (if KSU not "no")
 if [ "$KSU" != "no" ]; then
-  # Base KSU Config & Dependencies
   echo "⚙️ Added KSU configuration"
   cat >> $DEFCONFIG <<EOF
 CONFIG_KSU=y
@@ -12,6 +12,7 @@ CONFIG_KPM=y
 EOF
 fi
 
+# SuSFS config (if enabled)
 if [ "$KSU_SUSFS" = "true" ]; then
   echo "🔧 Mode: SuSFS Hook Enabled"
   cat >> $DEFCONFIG <<EOF
@@ -32,9 +33,9 @@ CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
 CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
 CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
 EOF
-
 fi
 
+# Universal Performance Tuning (always add, independent of KSU)
 echo "⚙️ Adding Universal Performance Tuning"
 cat >> $DEFCONFIG <<EOF
 # Universal Performance Tuning
@@ -103,41 +104,23 @@ CONFIG_IP6_NF_MATCH_HL=y
 CONFIG_BBG=y
 EOF
 
-fi
-
+# Droidspaces support (always add)
 echo "⚙️ Adding Droidspaces support"
 cat >> $DEFCONFIG <<EOF
 CONFIG_SYSVIPC=y
 CONFIG_POSIX_MQUEUE=y
-
 # Namespaces
 CONFIG_IPC_NS=y
 CONFIG_PID_NS=y
-
 # HW Access Support
 CONFIG_DEVTMPFS=y
-
-# Networking (Enhanced NAT support)
-CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
-
-# --- Below configs are optional but recommended ---
-
 # UFW support
 CONFIG_NETFILTER_XT_TARGET_REJECT=y
 CONFIG_NETFILTER_XT_TARGET_LOG=y
 CONFIG_NETFILTER_XT_MATCH_RECENT=y
-
-# Fail2ban support
-CONFIG_IP_SET=y
-CONFIG_IP_SET_HASH_IP=y
-CONFIG_IP_SET_HASH_NET=y
-CONFIG_NETFILTER_XT_SET=y
-
-# Enable xattr, posix acl support on tmpfs
-# For NixOS support
-CONFIG_TMPFS_POSIX_ACL=y
-CONFIG_TMPFS_XATTR=y
 EOF
+
+# Disable debugging configs for performance if NOT compat variant
 if [ "$KSU_COMPAT" != "true" ]; then
   echo "🔧 Disable useless debugging configs for performance and resources"
   cat >> $DEFCONFIG <<EOF
