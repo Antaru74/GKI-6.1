@@ -117,7 +117,7 @@ log "Applying abi_bypass_gki.patch"
 patch -p1 --fuzz=3 < "$KERNEL_PATCHES/abi_bypass_gki.patch" || echo "WARNING: abi bypass patch failed"
 
 log "Applying sysvipc kabi fix patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/0001.GKI-below-6.12-fix_sysvipc_kabi_6_7_8.patch" || echo "WARNING: sysvipc patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/001.GKI-below-6.12-fix_sysvipc_kabi_6_7_8.patch" || echo "WARNING: sysvipc patch failed"
 
 log "Applying common performance patches"
 patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/optimized_mem_operations.patch" || echo "WARNING: patch failed"
