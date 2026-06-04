@@ -68,23 +68,22 @@ jobs:
           restore-keys: |
             ccache-${{ runner.os }}-
 
-      - name: Set environment for build
+      - name: Patch build.sh to force gcc for host tools
+        working-directory: builder
         run: |
-          echo "KSU=${{ inputs.ksu_type }}" >> $GITHUB_ENV
-          if [[ "${{ inputs.include_susfs }}" == "true" ]]; then
-            echo "SUSFS_ENABLED=true" >> $GITHUB_ENV
-          fi
-          echo "WORKDIR=${{ github.workspace }}/builder" >> $GITHUB_ENV
+          # Insert HOSTCC and HOSTCXX at the beginning of MAKE_ARGS array
+          sed -i '/^MAKE_ARGS=(/a \  HOSTCC=gcc\n  HOSTCXX=g++' build.sh
 
       - name: Build kernel (compat variant)
         working-directory: builder
         run: |
-          export HOSTCC=gcc
-          export HOSTCXX=g++
           chmod +x build.sh functions.sh py/kmi-check-6.x.py
           ./build.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Ensure HOSTCC is also set for any direct make calls inside script
+          HOSTCC: gcc
+          HOSTCXX: g++
 
       - name: Upload artifacts (kernel zip & logs)
         uses: actions/upload-artifact@v4
