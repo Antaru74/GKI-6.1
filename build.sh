@@ -81,16 +81,18 @@ gh api 'repos/SukiSU-Ultra/SukiSU-Ultra/commits?sha=builtin&per_page=10' --jq '.
 gh api 'repos/pershoot/KernelSU-Next/commits?sha=dev-susfs&per_page=10' --jq '.[] | "- [" + .sha[0:7] + "](" + .html_url + ") " + (.commit.message | split("\n")[0])'\
 > "$RELEASE_DIR/ksun_changelog.txt"
 
-# Download Clang
-log "Downloading Clang..."
-CLANG_BIN="$WORKDIR/greenforce-clang/bin"
-wget -qO- "https://raw.githubusercontent.com/greenforce-project/greenforce_clang/refs/heads/main/get_clang.sh" | bash &> /dev/null
-if [ ! -d "$CLANG_BIN" ]; then
-    echo "Error: Clang not found in ${CLANG_BIN}."
+# ====================== INSTALL NEUTRON CLANG ======================
+log "Downloading Neutron Clang..."
+CLANG_URL="https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/03062026/neutron-clang-03062026.tar.zst"
+CLANG_DIR="$WORKDIR/neutron-clang"
+mkdir -p "$CLANG_DIR"
+wget -qO- "$CLANG_URL" | tar -I zstd -xf - -C "$CLANG_DIR"
+if [ ! -d "$CLANG_DIR/bin" ]; then
+    echo "Error: Neutron Clang not found in ${CLANG_DIR}."
     exit 1
 fi
-
-export PATH="${CLANG_BIN}:$PATH"
+export PATH="$CLANG_DIR/bin:$PATH"
+# ====================================================================
 
 # ccache configuration
 export CCACHE_DIR="$HOME/.ccache"
@@ -106,55 +108,55 @@ ccache --set-config=base_dir="$WORKDIR"
 ccache --set-config=compiler_check=content
 
 # Extract clang version
-COMPILER_STRING=$(clang -v 2>&1 | head -n 1 | sed 's/(https..*//' | sed 's/ version//')
+COMPILER_STRING=$(clang --version | head -n 1 | sed 's/(https..*//')
 echo "COMPILER_STRING=$COMPILER_STRING" >> $GITHUB_ENV
 
 cd $KSRC
 
 log "Applying common performance patches"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/optimized_mem_operations.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/file_struct_8bytes_align.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_cache_pressure.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/mem_opt_prefetch.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/optimized_mem_operations.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/file_struct_8bytes_align.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_cache_pressure.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/mem_opt_prefetch.patch" || echo "WARNING: patch failed"
 
 log "Applying architecture optimizations"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/optimise_memcmp.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/optimise_memcmp.patch" || echo "WARNING: patch failed"
 
 log "Applying network, I/O & power management patches"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/minimise_wakeup_time.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/int_sqrt.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/force_tcp_nodelay.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_gc_thread_sleep_time.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/add_timeout_wakelocks_globally.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/f2fs_reduce_congestion.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_freeze_timeout.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/f2fs_enlarge_min_fsync_blocks.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/minimise_wakeup_time.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/int_sqrt.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/force_tcp_nodelay.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_gc_thread_sleep_time.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/add_timeout_wakelocks_globally.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/f2fs_reduce_congestion.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_freeze_timeout.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/f2fs_enlarge_min_fsync_blocks.patch" || echo "WARNING: patch failed"
 
 log "Applying clear page alignment"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/clear_page_16bytes_align.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/clear_page_16bytes_align.patch" || echo "WARNING: patch failed"
 
 log "Applying CPU frequency & scheduler patches"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/add_limitation_scaling_min_freq.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/re_write_limitation_scaling_min_freq.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/adjust_cpu_scan_order.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/avoid_extra_s2idle_wake_attempts.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/disable_cache_hot_buddy.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/add_limitation_scaling_min_freq.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/re_write_limitation_scaling_min_freq.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/adjust_cpu_scan_order.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/avoid_extra_s2idle_wake_attempts.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/disable_cache_hot_buddy.patch" || echo "WARNING: patch failed"
 
 log "Applying filesystem & network tuning"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/increase_ext4_default_commit_age.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/increase_sk_mem_packets.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_pci_pme_wakeups.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/increase_ext4_default_commit_age.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/increase_sk_mem_packets.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/reduce_pci_pme_wakeups.patch" || echo "WARNING: patch failed"
 
 log "Applying log silencing patches"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/silence_irq_cpu_logspam.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/silence_system_logspam.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/use_unlikely_wrap_cpufreq.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/silence_irq_cpu_logspam.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/silence_system_logspam.patch" || echo "WARNING: patch failed"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/use_unlikely_wrap_cpufreq.patch" || echo "WARNING: patch failed"
 
 log "Applying unicode_bypass_fix_6.1.patch"
-patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/unicode_bypass_fix_6.1.patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/unicode_bypass_fix_6.1.patch" || echo "WARNING: patch failed"
 
 log "Applying BBRv3 patches"
-patch -p1 --fuzz=3 < $KERNEL_PATCHES/bbrv3/bbrv3.patch
+patch -p1 --fuzz=3 < $KERNEL_PATCHES/bbrv3/bbrv3.patch || echo "WARNING: patch failed"
 
 log "BBG included"
 wget -qO- "https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh" | bash
@@ -175,8 +177,8 @@ if [ "$KSU" = "SKSU" ]; then
     cp -R $SUSFS_PATCHES/fs/* ./fs
     cp -R $SUSFS_PATCHES/include/linux/* ./include/linux/
 
-    patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch"
-    patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "Common kernel SUSFS patch failed."
+    patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "WARNING: Common kernel SUSFS patch failed, continuing anyway"
 
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     echo "SUSFS_VERSION=$SUSFS_VERSION" >> $GITHUB_ENV
@@ -195,8 +197,8 @@ if susfs_included && [ "$KSU" = "RSKSU" ]; then
   cp -R $SUSFS_PATCHES/fs/* ./fs
   cp -R $SUSFS_PATCHES/include/linux/* ./include/linux/
 
-  patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch"
-  patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "Common kernel SUSFS patch failed."
+  patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch" || echo "WARNING: patch failed"
+  patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "WARNING: Common kernel SUSFS patch failed, continuing anyway"
 
   SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
   echo "SUSFS_VERSION=$SUSFS_VERSION" >> $GITHUB_ENV
@@ -217,12 +219,12 @@ if [ "$KSU" = "KSU" ]; then
 
     cd KernelSU
     git reset --soft HEAD~1
-    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-avc-log-spoofing.patch"
-    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-add-multiple-managers.patch"
-    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-throne_tracker-offload-to-kthread.patch"
-    patch -p1 --fuzz=3 < "$SUSFS_PATCHES/KernelSU/10_enable_susfs_for_ksu.patch"
-    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-escape-persistent_allow_list-to-kthread.patch"
-    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-supercalls-allow-userspace-to-pull-list-entries.patch"
+    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-avc-log-spoofing.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-add-multiple-managers.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-throne_tracker-offload-to-kthread.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < "$SUSFS_PATCHES/KernelSU/10_enable_susfs_for_ksu.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-escape-persistent_allow_list-to-kthread.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < "$WORKDIR/patches/0001-feat-supercalls-allow-userspace-to-pull-list-entries.patch" || echo "WARNING: patch failed"
     sed -i "/    git pull && echo \"\[+\] Repository updated.\"/d" "kernel/setup.sh"
     git config --global user.email "mr.ahmed.nassif@gmail.com"
     git config --global user.name "Ahmed Al-Nassif"
@@ -234,8 +236,8 @@ if [ "$KSU" = "KSU" ]; then
     cp -R $SUSFS_PATCHES/fs/* ./fs
     cp -R $SUSFS_PATCHES/include/linux/* ./include/linux/
 
-    patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch"
-    patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "Common kernel SUSFS patch failed."
+    patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "WARNING: Common kernel SUSFS patch failed, continuing anyway"
 
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     echo "SUSFS_VERSION=$SUSFS_VERSION" >> $GITHUB_ENV
@@ -259,8 +261,8 @@ if [ "$KSU" = "KSUN" ]; then
     cp -R $SUSFS_PATCHES/fs/* ./fs
     cp -R $SUSFS_PATCHES/include/linux/* ./include/linux/
 
-    patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch"
-    patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "Common kernel SUSFS patch failed."
+    patch -p1 --fuzz=3 < "$KERNEL_PATCHES/susfs/fs_namespace.patch" || echo "WARNING: patch failed"
+    patch -p1 --fuzz=3 < $SUSFS_PATCHES/50_add_susfs_in_${SUSFS_PATCH}.patch || echo "WARNING: Common kernel SUSFS patch failed, continuing anyway"
 
     SUSFS_VERSION=$(grep -E '^#define SUSFS_VERSION' ./include/linux/susfs.h | cut -d' ' -f3 | sed 's/"//g')
     echo "SUSFS_VERSION=$SUSFS_VERSION" >> $GITHUB_ENV
@@ -314,7 +316,10 @@ KMI_CHECK="$WORKDIR/py/kmi-check-6.x.py"
 
 ## Build GKI
 log "Generating config..."
-make ${MAKE_ARGS[@]} "$KERNEL_DEFCONFIG"
+make ${MAKE_ARGS[@]} "$KERNEL_DEFCONFIG" || {
+    echo "ERROR: make defconfig failed"
+    exit 1
+}
 
 # SUSFS debugging
 if susfs_included; then
@@ -352,7 +357,10 @@ fi
 
 # Build the actual kernel
 log "Building kernel..."
-make ${MAKE_ARGS[@]}
+make ${MAKE_ARGS[@]} || {
+    echo "ERROR: Kernel build failed"
+    exit 1
+}
 
 # Check KMI Function symbol
 $KMI_CHECK "$KSRC/android/abi_gki_aarch64.stg" "$MODULE_SYMVERS" || true
@@ -362,7 +370,12 @@ cd $WORKDIR
 
 # Clone AnyKernel
 log "Cloning anykernel from $(simplify_gh_url "$ANYKERNEL_REPO")"
-git clone -q --depth=1 $ANYKERNEL_REPO anykernel
+export GIT_TERMINAL_PROMPT=0
+git clone -q --depth=1 "$ANYKERNEL_REPO" anykernel
+if [ ! -d "anykernel" ]; then
+    echo "ERROR: Failed to clone anykernel repository"
+    exit 1
+fi
 
 # Set kernel string in anykernel
 if [ $STATUS == "BETA" ]; then
