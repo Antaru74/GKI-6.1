@@ -8,7 +8,7 @@ KERNEL_NAME="GKI"
 USER="Antaru74"
 HOST="GKI-Builder"
 TIMEZONE="Asia/Jakarta"
-ANYKERNEL_REPO="https://github.com/Antaru74/AK3-GKI"
+ANYKERNEL_REPO="https://github.com/Antaru74/AK3-GKID"
 
 KERNEL_DEFCONFIG="gki_defconfig"
 KERNEL_BRANCH="a14-6.1"
