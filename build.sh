@@ -113,6 +113,9 @@ echo "COMPILER_STRING=$COMPILER_STRING" >> $GITHUB_ENV
 
 cd $KSRC
 
+log "Applying sysvipc kabi fix patch"
+patch -p1 --fuzz=3 < "$KERNEL_PATCHES/0001.GKI-below-6.12-fix_sysvipc_kabi_6_7_8.patch" || echo "WARNING: sysvipc patch failed"
+
 log "Applying common performance patches"
 patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/optimized_mem_operations.patch" || echo "WARNING: patch failed"
 patch -p1 --fuzz=3 < "$KERNEL_PATCHES/common/file_struct_8bytes_align.patch" || echo "WARNING: patch failed"
