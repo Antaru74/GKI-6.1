@@ -1,4 +1,4 @@
-name: GKI-Duchamp Builder
+name: GKI-6.1 Builder
 
 on:
   workflow_call:
@@ -79,7 +79,6 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          # Build JSON array manually
           ENTRIES=""
 
           if [[ "${{ github.event.inputs.BUILD_VANILLA }}" == "true" ]]; then
@@ -103,14 +102,10 @@ jobs:
             ENTRIES="${ENTRIES}{\"name\":\"KSUN+SUSFS\",\"KSU\":\"KSUN\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"true\"},"
             ENTRIES="${ENTRIES}{\"name\":\"Compat+KSU+SUSFS\",\"KSU\":\"KSU\",\"KSU_COMPAT\":\"true\",\"KSU_SUSFS\":\"true\"},"
             ENTRIES="${ENTRIES}{\"name\":\"Compat+KSUN+SUSFS\",\"KSU\":\"KSUN\",\"KSU_COMPAT\":\"true\",\"KSU_SUSFS\":\"true\"},"
-            #ENTRIES="${ENTRIES}{\"name\":\"SKSU+SUSFS\",\"KSU\":\"SKSU\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"true\"},"
             ENTRIES="${ENTRIES}{\"name\":\"RSKSU+SUSFS\",\"KSU\":\"RSKSU\",\"KSU_COMPAT\":\"false\",\"KSU_SUSFS\":\"true\"},"
           fi
 
-          # Remove trailing comma and wrap in array
           ENTRIES="[${ENTRIES%,}]"
-
-          # Output matrix
           echo "matrix={\"include\":${ENTRIES}}" >> $GITHUB_OUTPUT
 
   build:
@@ -263,20 +258,15 @@ jobs:
 
       - name: Load environment from builds
         run: |
-          # Find all environment files
           ENV_FILES=$(find release-artifacts -name "build-env-*.txt")
     
-          # Set defaults
           echo "KSU=Not included" >> $GITHUB_ENV
           echo "KSU_SUSFS=Not included" >> $GITHUB_ENV
           echo "SUSFS_VERSION=Not included" >> $GITHUB_ENV
     
-          # Load values from any file
           SUSFS_FILE=""
           for env_file in $ENV_FILES; do
             echo "Checking $env_file..."
-      
-            # Check if this file has SUSFS
             if grep -q "SUSFS_VERSION=" "$env_file" && grep -q "KSU_SUSFS=true" "$env_file"; then
               SUSFS_FILE="$env_file"
               echo "Found SUSFS build: $env_file"
@@ -284,12 +274,10 @@ jobs:
             fi
           done
     
-          # If no SUSFS file, take first file
           if [ -z "$SUSFS_FILE" ]; then
             SUSFS_FILE=$(echo "$ENV_FILES" | head -1)
           fi
     
-          # Load the chosen file
           if [ -f "$SUSFS_FILE" ]; then
             echo "Loading environment from: $SUSFS_FILE"
             while IFS='=' read -r key value; do
@@ -301,7 +289,6 @@ jobs:
 
       - name: Prepare release body
         run: |
-            # Get list of built variants
             VARIANTS=$(ls release-artifacts/*.zip 2>/dev/null | xargs -n1 basename | sed 's/.zip//')
             
             {
@@ -367,7 +354,7 @@ jobs:
               echo "*No changelog available*"
             fi
             echo ""
-            echo "**Full Commit History:** [Browse all commits](https://github.com/ahmed-alnassif/android_kernel_common-6.1/commits/a14-6.1)"
+            echo "**Full Commit History:** [Browse all commits](https://github.com/Antaru74/android_kernel_common-6.1/commits/a14-6.1)"
             echo ""
             echo "---"
             echo "**KernelSU Changelog (last 10 commits):**"
