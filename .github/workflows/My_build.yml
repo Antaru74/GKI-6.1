@@ -15,7 +15,7 @@ on:
           - KSUN
           - no
       include_susfs:
-        description: 'Include SuSFS (if supported by KSU type)'
+        description: 'Include SuSFS'
         required: false
         default: true
         type: boolean
@@ -28,7 +28,7 @@ on:
           - RELEASE
           - BETA
       run_num:
-        description: 'Run number (appended to version)'
+        description: 'Run number'
         required: false
         default: '0'
         type: string
@@ -64,19 +64,23 @@ jobs:
         with:
           path: ~/.ccache
           key: ccache-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-
+          restore-keys: ccache-${{ runner.os }}-
 
-      - name: Patch build.sh to use explicit clang tools + gcc for host
+      - name: Fix build.sh to avoid LLVM for host tools
         working-directory: builder
         run: |
-          # Replace LLVM=1 line in MAKE_ARGS with explicit toolchain variables
+          # Backup original
+          cp build.sh build.sh.orig
+          # Remove LLVM=1 and LLVM_IAS=1 from MAKE_ARGS
           sed -i '/^MAKE_ARGS=(/,/^)/ {
-            s/LLVM=1/CC=clang\n  LD=ld.lld\n  AR=llvm-ar\n  NM=llvm-nm\n  STRIP=llvm-strip\n  OBJCOPY=llvm-objcopy\n  OBJDUMP=llvm-objdump\n  READELF=llvm-readelf/
-            /LLVM_IAS=1/d
+            s/LLVM=1//g
+            s/LLVM_IAS=1//g
           }' build.sh
-          # Also ensure HOSTCC and HOSTCXX are first in the array
-          sed -i '/^MAKE_ARGS=(/a \  HOSTCC=gcc\n  HOSTCXX=g++' build.sh
+          # Insert explicit Clang tools for kernel after HOSTCC/HOSTCXX
+          sed -i '/^MAKE_ARGS=(/a \  HOSTCC=gcc\n  HOSTCXX=g++\n  CC=clang\n  LD=ld.lld\n  AR=llvm-ar\n  NM=llvm-nm\n  STRIP=llvm-strip\n  OBJCOPY=llvm-objcopy\n  OBJDUMP=llvm-objdump\n  READELF=llvm-readelf' build.sh
+          # Also ensure CROSS_COMPILE lines remain
+          echo "Patched MAKE_ARGS:"
+          sed -n '/^MAKE_ARGS=(/,/^)/p' build.sh
 
       - name: Build kernel (compat variant)
         working-directory: builder
@@ -99,11 +103,9 @@ jobs:
         working-directory: builder
         run: |
           source artifacts/info.txt 2>/dev/null || true
-          RELEASE_NAME="$KERNEL_NAME $RELEASE"
-          TAG_NAME="v${RELEASE}"
-          gh release create "$TAG_NAME" \
-            --title "$RELEASE_NAME" \
-            --notes "Kernel build for compat variant (${KSU})" \
+          gh release create "v${RELEASE}" \
+            --title "$KERNEL_NAME $RELEASE" \
+            --notes "Kernel compat variant (${KSU})" \
             artifacts/*.zip artifacts/*.txt artifacts/build.log
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
